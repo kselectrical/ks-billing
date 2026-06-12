@@ -254,15 +254,13 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
 function downloadInvoicePDF() {
     var element = document.getElementById('invoice-print-area');
     var opt = {
-        margin:       [0.15, 0.15, 0.15, 0.15],
+        margin:       [0.2, 0.2, 0.2, 0.2],
         filename:     'Invoice_KS_<?php echo $invoice['id']; ?>_' + '<?php echo str_replace(' ', '_', $invoice['customer_name']); ?>.pdf',
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { 
             scale: 2.2, 
             useCORS: true, 
-            logging: false,
-            width: 740,
-            windowWidth: 760
+            logging: false
         },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
