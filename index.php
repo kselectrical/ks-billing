@@ -150,8 +150,9 @@ $res_invoices = $connect->query($sql_invoices);
                                 </span>
                             </td>
                             <td style="text-align: center; white-space: nowrap;">
-                                <a href="view_invoice.php?id=<?php echo $inv['id']; ?>" class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;">View/Print</a>
-                                <a href="index.php?delete=<?php echo $inv['id']; ?>" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;" onclick="return confirm('Are you sure you want to delete this bill?');">Delete</a>
+                                <a href="view_invoice.php?id=<?php echo $inv['id']; ?>" class="btn btn-primary" style="padding: 5px 10px; font-size: 11px;">View/Print</a>
+                                <a href="edit_invoice.php?id=<?php echo $inv['id']; ?>" class="btn btn-success" style="padding: 5px 10px; font-size: 11px; background-color: var(--secondary);">Edit</a>
+                                <a href="index.php?delete=<?php echo $inv['id']; ?>" class="btn btn-danger" style="padding: 5px 10px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this bill?');">Delete</a>
                             </td>
                         </tr>
                         <?php 
