@@ -1,5 +1,5 @@
 <?php
-// view_invoice.php - Smart Vyapar-Style Tax Invoice for KS Electrical and AC Services
+// view_invoice.php - Smart & Compact Vyapar-Style Tax Invoice for KS Electrical and AC Services
 require_once 'db_connect.php';
 
 $invoice_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -22,6 +22,16 @@ $invoice = $res_invoice->fetch_assoc();
 // Fetch invoice items
 $sql_items = "SELECT * FROM `invoice_items` WHERE `invoice_id` = $invoice_id";
 $res_items = $connect->query($sql_items);
+
+// Convert logo.png to Base64 to ensure it displays everywhere (including inside generated PDFs)
+$logo_base64 = '';
+$logo_path = __DIR__ . '/logo.png';
+if (file_exists($logo_path)) {
+    $logo_data = @file_get_contents($logo_path);
+    if ($logo_data !== false) {
+        $logo_base64 = 'data:image/png;base64,' . base64_encode($logo_data);
+    }
+}
 
 // Helper function to convert number to Indian currency words
 function getIndianCurrencyInWords($number) {
@@ -75,8 +85,10 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
 <header>
     <div class="container header-container">
         <div class="logo-section">
-            <h1 style="display: flex; align-items: center; gap: 10px;">
-                <img src="logo.png" alt="Logo" style="height: 32px; width: auto; object-fit: contain;">
+            <h1 style="display: flex; align-items: center; gap: 8px; font-size: 18px;">
+                <?php if (!empty($logo_base64)) { ?>
+                    <img src="<?php echo $logo_base64; ?>" alt="Logo" style="height: 28px; width: auto; object-fit: contain;">
+                <?php } ?>
                 KS Electrical and AC Services
             </h1>
             <span>Kaushindra Singh • Billing System</span>
@@ -111,10 +123,10 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
             <!-- Company details with logo.png -->
             <div class="vyapar-header">
                 <div class="vyapar-logo-container">
-                    <?php if (file_exists('logo.png')) { ?>
-                        <img class="vyapar-logo" src="logo.png" alt="Logo">
+                    <?php if (!empty($logo_base64)) { ?>
+                        <img class="vyapar-logo" src="<?php echo $logo_base64; ?>" alt="Logo">
                     <?php } else { ?>
-                        <div style="font-weight: 700; color: var(--primary);">KS</div>
+                        <div style="font-weight: 700; color: #1e3a8a; font-size: 20px;">KS</div>
                     <?php } ?>
                 </div>
                 <div class="vyapar-company-details">
@@ -146,11 +158,11 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
                 <table class="vyapar-table">
                     <thead>
                         <tr>
-                            <th style="width: 5%; text-align: center;">#</th>
-                            <th style="width: 50%;">Item Name</th>
-                            <th style="width: 15%; text-align: center;">HSN/ SAC</th>
-                            <th style="width: 10%; text-align: center;">Quantity</th>
-                            <th style="width: 10%; text-align: right;">Price/ Unit (₹)</th>
+                            <th style="width: 5%; text-align: center; border-right: 1px solid #1e293b;">#</th>
+                            <th style="width: 50%; border-right: 1px solid #1e293b;">Item Name</th>
+                            <th style="width: 15%; text-align: center; border-right: 1px solid #1e293b;">HSN/ SAC</th>
+                            <th style="width: 10%; text-align: center; border-right: 1px solid #1e293b;">Quantity</th>
+                            <th style="width: 10%; text-align: right; border-right: 1px solid #1e293b;">Price/ Unit (₹)</th>
                             <th style="width: 10%; text-align: right;">Amount(₹)</th>
                         </tr>
                     </thead>
@@ -162,20 +174,20 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
                             $total_qty += $item['quantity'];
                         ?>
                         <tr>
-                            <td style="text-align: center;"><?php echo $count++; ?></td>
-                            <td><?php echo htmlspecialchars($item['description']); ?></td>
-                            <td style="text-align: center;"><?php echo htmlspecialchars($item['hsn_sac']); ?></td>
-                            <td style="text-align: center;"><?php echo $item['quantity']; ?></td>
-                            <td style="text-align: right;">₹ <?php echo number_format($item['rate'], 2); ?></td>
+                            <td style="text-align: center; border-right: 1px solid #1e293b;"><?php echo $count++; ?></td>
+                            <td style="border-right: 1px solid #1e293b;"><?php echo htmlspecialchars($item['description']); ?></td>
+                            <td style="text-align: center; border-right: 1px solid #1e293b;"><?php echo htmlspecialchars($item['hsn_sac']); ?></td>
+                            <td style="text-align: center; border-right: 1px solid #1e293b;"><?php echo $item['quantity']; ?></td>
+                            <td style="text-align: right; border-right: 1px solid #1e293b;">₹ <?php echo number_format($item['rate'], 2); ?></td>
                             <td style="text-align: right;">₹ <?php echo number_format($item['total'], 2); ?></td>
                         </tr>
                         <?php } ?>
                         <!-- Total Row -->
                         <tr class="total-row">
-                            <td colspan="3" style="text-align: right; padding-right: 15px;">Total</td>
-                            <td style="text-align: center;"><?php echo $total_qty; ?></td>
-                            <td></td>
-                            <td style="text-align: right;">₹ <?php echo number_format($invoice['sub_total'], 2); ?></td>
+                            <td colspan="3" style="text-align: right; padding-right: 15px; border-right: 1px solid #1e293b;">Total</td>
+                            <td style="text-align: center; border-right: 1px solid #1e293b;"><?php echo $total_qty; ?></td>
+                            <td style="border-right: 1px solid #1e293b;"></td>
+                            <td style="text-align: right; font-weight: 700;">₹ <?php echo number_format($invoice['sub_total'], 2); ?></td>
                         </tr>
                     </tbody>
                 </table>
@@ -210,13 +222,13 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
                     </div>
                     <div class="vyapar-words-row">
                         <strong>Invoice Amount in Words :</strong><br>
-                        <span style="font-size: 11px; color: #475569;"><?php echo $amount_in_words; ?></span>
+                        <span style="font-size: 10px; color: #1e293b; font-style: italic;"><?php echo $amount_in_words; ?></span>
                     </div>
                     <div class="vyapar-calc-row">
                         <span>Received</span>
                         <span>: &nbsp;&nbsp;&nbsp; ₹ <?php echo number_format($invoice['received'], 2); ?></span>
                     </div>
-                    <div class="vyapar-calc-row" style="color: var(--danger); font-weight: 600;">
+                    <div class="vyapar-calc-row" style="color: var(--danger); font-weight: 700;">
                         <span>Balance</span>
                         <span>: &nbsp;&nbsp;&nbsp; ₹ <?php echo number_format($invoice['balance'], 2); ?></span>
                     </div>
@@ -240,7 +252,7 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
 function downloadInvoicePDF() {
     var element = document.getElementById('invoice-print-area');
     var opt = {
-        margin:       [0.2, 0.2, 0.2, 0.2],
+        margin:       [0.15, 0.15, 0.15, 0.15],
         filename:     'Invoice_KS_<?php echo $invoice['id']; ?>_' + '<?php echo str_replace(' ', '_', $invoice['customer_name']); ?>.pdf',
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2.5, useCORS: true, logging: false },
