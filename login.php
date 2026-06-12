@@ -1,8 +1,6 @@
 <?php
 // login.php - Secure Login Screen for KS Electrical and AC Services
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once 'session_start.php';
 
 // If already logged in, redirect to dashboard
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {

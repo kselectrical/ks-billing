@@ -1,8 +1,6 @@
 <?php
 // logout.php - Logout and end session
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once 'session_start.php';
 
 $_SESSION = array();
 
