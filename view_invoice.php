@@ -257,7 +257,13 @@ function downloadInvoicePDF() {
         margin:       [0.15, 0.15, 0.15, 0.15],
         filename:     'Invoice_KS_<?php echo $invoice['id']; ?>_' + '<?php echo str_replace(' ', '_', $invoice['customer_name']); ?>.pdf',
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2.5, useCORS: true, logging: false },
+        html2canvas:  { 
+            scale: 2.2, 
+            useCORS: true, 
+            logging: false,
+            width: 740,
+            windowWidth: 760
+        },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
     
