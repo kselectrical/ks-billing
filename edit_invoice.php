@@ -1,5 +1,6 @@
 <?php
 // edit_invoice.php - Edit Existing Invoices for KS Electrical and AC Services
+require_once 'auth_check.php';
 require_once 'db_connect.php';
 
 $invoice_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -126,6 +127,7 @@ if ($_POST) {
         <nav>
             <a href="index.php">Dashboard</a>
             <a href="create_invoice.php">Create New Bill</a>
+            <a href="logout.php" style="color: var(--danger); margin-left: 10px;">Logout</a>
         </nav>
     </div>
 </header>

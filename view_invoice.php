@@ -1,5 +1,6 @@
 <?php
 // view_invoice.php - Smart & Compact Vyapar-Style Tax Invoice for KS Electrical and AC Services
+require_once 'auth_check.php';
 require_once 'db_connect.php';
 
 $invoice_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -97,6 +98,7 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
         <nav>
             <a href="index.php">Dashboard</a>
             <a href="create_invoice.php">Create New Bill</a>
+            <a href="logout.php" style="color: var(--danger); margin-left: 10px;">Logout</a>
         </nav>
     </div>
 </header>

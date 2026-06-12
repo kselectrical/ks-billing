@@ -1,5 +1,6 @@
 <?php
 // index.php - Dashboard and Invoice List for KS Electrical and AC Services
+require_once 'auth_check.php';
 require_once 'db_connect.php';
 
 // Handle Delete Action
@@ -58,6 +59,7 @@ $res_invoices = $connect->query($sql_invoices);
         <nav>
             <a href="index.php" class="active">Dashboard</a>
             <a href="create_invoice.php">Create New Bill</a>
+            <a href="logout.php" style="color: var(--danger); margin-left: 10px;">Logout</a>
         </nav>
     </div>
 </header>

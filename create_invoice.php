@@ -1,5 +1,6 @@
 <?php
 // create_invoice.php - Invoice Creation with HSN/SAC, Received, and Balance
+require_once 'auth_check.php';
 require_once 'db_connect.php';
 
 $message = "";
@@ -86,6 +87,7 @@ if ($_POST) {
         <nav>
             <a href="index.php">Dashboard</a>
             <a href="create_invoice.php" class="active">Create New Bill</a>
+            <a href="logout.php" style="color: var(--danger); margin-left: 10px;">Logout</a>
         </nav>
     </div>
 </header>
