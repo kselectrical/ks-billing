@@ -1,5 +1,5 @@
 <?php
-// create_invoice.php - Invoice Creation for KS Electrical and AC Services
+// create_invoice.php - Invoice Creation with HSN/SAC, Received, and Balance
 require_once 'db_connect.php';
 
 $message = "";
@@ -14,33 +14,44 @@ if ($_POST) {
     $gst_amount = floatval($_POST['gst_amount']);
     $discount = floatval($_POST['discount']);
     $grand_total = floatval($_POST['grand_total']);
-    $payment_status = mysqli_real_escape_string($connect, $_POST['payment_status']);
+    $received = floatval($_POST['received']);
+    $balance = floatval($_POST['balance']);
     $payment_method = mysqli_real_escape_string($connect, $_POST['payment_method']);
+
+    // Set payment status based on received amount
+    $payment_status = "Paid";
+    if ($received == 0) {
+        $payment_status = "Unpaid";
+    } elseif ($received < $grand_total) {
+        $payment_status = "Partial";
+    }
 
     // Insert into invoices
     $sql_invoice = "INSERT INTO `invoices` 
-        (`customer_name`, `customer_phone`, `customer_address`, `invoice_date`, `sub_total`, `gst_rate`, `gst_amount`, `discount`, `grand_total`, `payment_status`, `payment_method`) 
+        (`customer_name`, `customer_phone`, `customer_address`, `invoice_date`, `sub_total`, `gst_rate`, `gst_amount`, `discount`, `grand_total`, `received`, `balance`, `payment_status`, `payment_method`) 
         VALUES 
-        ('$customer_name', '$customer_phone', '$customer_address', '$invoice_date', $sub_total, $gst_rate, $gst_amount, $discount, $grand_total, '$payment_status', '$payment_method')";
+        ('$customer_name', '$customer_phone', '$customer_address', '$invoice_date', $sub_total, $gst_rate, $gst_amount, $discount, $grand_total, $received, $balance, '$payment_status', '$payment_method')";
 
     if ($connect->query($sql_invoice)) {
         $invoice_id = $connect->insert_id;
 
         // Insert items
         $descriptions = $_POST['description'];
+        $hsn_sacs = $_POST['hsn_sac'];
         $quantities = $_POST['quantity'];
         $rates = $_POST['rate'];
         $totals = $_POST['total_val'];
 
         for ($i = 0; $i < count($descriptions); $i++) {
             $desc = mysqli_real_escape_string($connect, $descriptions[$i]);
+            $hsn = mysqli_real_escape_string($connect, $hsn_sacs[$i]);
             $qty = intval($quantities[$i]);
             $rate = floatval($rates[$i]);
             $tot = floatval($totals[$i]);
 
             if (!empty($desc)) {
-                $sql_item = "INSERT INTO `invoice_items` (`invoice_id`, `description`, `quantity`, `rate`, `total`) 
-                             VALUES ($invoice_id, '$desc', $qty, $rate, $tot)";
+                $sql_item = "INSERT INTO `invoice_items` (`invoice_id`, `description`, `hsn_sac`, `quantity`, `rate`, `total`) 
+                             VALUES ($invoice_id, '$desc', '$hsn', $qty, $rate, $tot)";
                 $connect->query($sql_item);
             }
         }
@@ -65,7 +76,10 @@ if ($_POST) {
 <header>
     <div class="container header-container">
         <div class="logo-section">
-            <h1>KS Electrical and AC Services</h1>
+            <h1 style="display: flex; align-items: center; gap: 10px;">
+                <img src="logo.png" alt="Logo" style="height: 32px; width: auto; object-fit: contain;">
+                KS Electrical and AC Services
+            </h1>
             <span>Kaushindra Singh • Billing System</span>
         </div>
         <nav>
@@ -95,7 +109,7 @@ if ($_POST) {
                     </div>
                     <div class="form-group">
                         <label for="customer_phone">Phone Number *</label>
-                        <input type="text" class="form-control" id="customer_phone" name="customer_phone" required placeholder="e.g. 9876543210" pattern="[0-9]{10}" title="Please enter a 10 digit phone number">
+                        <input type="text" class="form-control" id="customer_phone" name="customer_phone" required placeholder="e.g. 918860989289" pattern="[0-9]{10,12}" title="Please enter a valid phone number">
                     </div>
                     <div class="form-group">
                         <label for="invoice_date">Date *</label>
@@ -120,17 +134,21 @@ if ($_POST) {
                     <table class="items-table" id="itemsTable">
                         <thead>
                             <tr>
-                                <th style="width: 50%;">Service/Part Description (कार्य का विवरण)</th>
-                                <th style="width: 12%; text-align: center;">Qty (मात्रा)</th>
-                                <th style="width: 18%; text-align: right;">Rate (₹) (दर)</th>
-                                <th style="width: 15%; text-align: right;">Total (₹) (कुल)</th>
-                                <th style="width: 5%; text-align: center;">Action</th>
+                                <th style="width: 45%;">Item Name / Service Description *</th>
+                                <th style="width: 15%;">HSN / SAC</th>
+                                <th style="width: 10%; text-align: center;">Quantity</th>
+                                <th style="width: 15%; text-align: right;">Price / Unit (₹)</th>
+                                <th style="width: 12%; text-align: right;">Amount (₹)</th>
+                                <th style="width: 3%; text-align: center;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td>
-                                    <input type="text" class="form-control" name="description[]" required placeholder="e.g. Split AC Jet Servicing">
+                                    <input type="text" class="form-control" name="description[]" required placeholder="e.g. Split AC Service (Jet Cleaning)">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control" name="hsn_sac[]" placeholder="e.g. 9987">
                                 </td>
                                 <td>
                                     <input type="number" class="form-control" name="quantity[]" value="1" min="1" style="text-align: center;" oninput="calculateRowTotal(this)">
@@ -142,7 +160,7 @@ if ($_POST) {
                                     <input type="number" step="0.01" class="form-control row-total-input" name="total_val[]" value="0.00" readonly style="text-align: right; font-weight: 600; border: none; background: transparent;">
                                 </td>
                                 <td style="text-align: center;">
-                                    <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="removeRow(this)">Delete</button>
+                                    <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="removeRow(this)">X</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -155,17 +173,9 @@ if ($_POST) {
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start;">
             <!-- Payment Info -->
             <div class="card">
-                <div class="card-header">Payment details</div>
+                <div class="card-header">Payment Info</div>
                 <div class="card-body">
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="payment_status">Payment Status</label>
-                        <select class="form-control" id="payment_status" name="payment_status">
-                            <option value="Paid">Paid (पूरा भुगतान)</option>
-                            <option value="Unpaid">Unpaid (उधार/बकाया)</option>
-                            <option value="Partial">Partial (आंशिक भुगतान)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
                         <label for="payment_method">Payment Method</label>
                         <select class="form-control" id="payment_method" name="payment_method">
                             <option value="Cash">Cash (नकद)</option>
@@ -183,7 +193,7 @@ if ($_POST) {
                 <div class="card-body">
                     <table class="summary-table" style="max-width: 100%;">
                         <tr>
-                            <td>Subtotal (₹)</td>
+                            <td>Sub Total (₹)</td>
                             <td>
                                 <input type="number" step="0.01" class="form-control" id="sub_total" name="sub_total" value="0.00" readonly style="text-align: right; font-weight: 500; border: none; background: transparent;">
                             </td>
@@ -191,7 +201,7 @@ if ($_POST) {
                         <tr>
                             <td>GST Rate (%)</td>
                             <td>
-                                <input type="number" class="form-control" id="gst_rate" name="gst_rate" value="18" min="0" style="text-align: right;" oninput="calculateInvoiceTotal()">
+                                <input type="number" class="form-control" id="gst_rate" name="gst_rate" value="0" min="0" style="text-align: right;" oninput="calculateInvoiceTotal()">
                             </td>
                         </tr>
                         <tr>
@@ -207,9 +217,21 @@ if ($_POST) {
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Grand Total (₹)</strong></td>
+                            <td><strong>Total (₹)</strong></td>
                             <td>
-                                <input type="number" step="0.01" class="form-control" id="grand_total" name="grand_total" value="0.00" readonly style="text-align: right; font-weight: 700; font-size: 18px; border: none; background: transparent; color: var(--primary);">
+                                <input type="number" step="0.01" class="form-control" id="grand_total" name="grand_total" value="0.00" readonly style="text-align: right; font-weight: 700; font-size: 16px; border: none; background: transparent; color: var(--text-main);">
+                            </td>
+                        </tr>
+                        <tr style="background-color: #f8fafc;">
+                            <td>Received Amount (₹) *</td>
+                            <td>
+                                <input type="number" step="0.01" class="form-control" id="received" name="received" value="0.00" min="0" style="text-align: right; font-weight: 600;" oninput="calculateInvoiceTotal()">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Balance Due (₹)</td>
+                            <td>
+                                <input type="number" step="0.01" class="form-control" id="balance" name="balance" value="0.00" readonly style="text-align: right; font-weight: 600; border: none; background: transparent; color: var(--danger);">
                             </td>
                         </tr>
                     </table>
@@ -229,7 +251,10 @@ function addRow() {
     
     newRow.innerHTML = `
         <td>
-            <input type="text" class="form-control" name="description[]" required placeholder="e.g. Split AC Installation">
+            <input type="text" class="form-control" name="description[]" required placeholder="e.g. Labor Charge / Part Name">
+        </td>
+        <td>
+            <input type="text" class="form-control" name="hsn_sac[]" placeholder="e.g. 9987">
         </td>
         <td>
             <input type="number" class="form-control" name="quantity[]" value="1" min="1" style="text-align: center;" oninput="calculateRowTotal(this)">
@@ -241,7 +266,7 @@ function addRow() {
             <input type="number" step="0.01" class="form-control row-total-input" name="total_val[]" value="0.00" readonly style="text-align: right; font-weight: 600; border: none; background: transparent;">
         </td>
         <td style="text-align: center;">
-            <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="removeRow(this)">Delete</button>
+            <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="removeRow(this)">X</button>
         </td>
     `;
 }
@@ -267,6 +292,13 @@ function calculateRowTotal(input) {
     calculateInvoiceTotal();
 }
 
+// Global flag to track if user has manually edited the received input
+var userEditedReceived = false;
+
+document.getElementById('received').addEventListener('focus', function() {
+    userEditedReceived = true;
+});
+
 function calculateInvoiceTotal() {
     var rows = document.querySelectorAll('.items-table tbody tr');
     var subtotal = 0;
@@ -286,6 +318,18 @@ function calculateInvoiceTotal() {
     var grandTotal = (subtotal + gstAmount) - discount;
     
     document.getElementById('grand_total').value = grandTotal.toFixed(2);
+    
+    // Auto-update received amount if user hasn't edited it manually yet
+    var receivedField = document.getElementById('received');
+    if (!userEditedReceived) {
+        receivedField.value = grandTotal.toFixed(2);
+    }
+    
+    var received = parseFloat(receivedField.value) || 0;
+    var balance = grandTotal - received;
+    if (balance < 0) balance = 0; // Prevent negative balance
+    
+    document.getElementById('balance').value = balance.toFixed(2);
 }
 </script>
 
