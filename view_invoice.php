@@ -76,7 +76,8 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tax Invoice #<?php echo $invoice['id']; ?> | KS Electrical and AC Services</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- Appending time() forces browser to clear cached CSS instantly -->
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
     <!-- html2pdf.js for Client-Side PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -133,7 +134,8 @@ $amount_in_words = getIndianCurrencyInWords($invoice['grand_total']);
                     <div class="vyapar-company-name">KS Electrical And AC Services</div>
                     <div class="vyapar-company-info">
                         Gaur City 1 sector 4 greater Noida Uttar Pradesh India<br>
-                        <strong>Phone:</strong> 7895321472 &nbsp;|&nbsp; <strong>Email:</strong> kaushindrasingh04@gmail.com
+                        <strong>Phone:</strong> +91 7895321472, +91 9625724903 &nbsp;|&nbsp; <strong>Email:</strong> kselectrical004@gmail.com<br>
+                        <strong>Website:</strong> www.kselectrical.in
                     </div>
                 </div>
             </div>

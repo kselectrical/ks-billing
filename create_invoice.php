@@ -69,7 +69,8 @@ if ($_POST) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Bill | KS Electrical and AC Services</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- Appending time() forces browser to clear cached CSS instantly -->
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
