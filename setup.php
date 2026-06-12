@@ -1,6 +1,9 @@
 <?php
 // setup.php - Interactive Database Installer for KS Electrical and AC Services
 
+// Disable mysqli exceptions for PHP 8.1+ compatibility
+@mysqli_report(MYSQLI_REPORT_OFF);
+
 $db_connect_path = __DIR__ . '/db_connect.php';
 $message = "";
 $show_form = false;
@@ -19,10 +22,16 @@ if ($_POST) {
     $dbname = trim($_POST['db_name']);
     
     // Try connecting with new details
-    $conn = @new mysqli($host, $user, $pass);
-    if ($conn->connect_error) {
+    try {
+        $conn = @new mysqli($host, $user, $pass);
+    } catch (Exception $e) {
+        $conn = null;
+    }
+    
+    if (!$conn || $conn->connect_error) {
+        $error_msg = $conn ? $conn->connect_error : "Connection failed (Invalid hostname or username)";
         $message = "<div style='color: red; padding: 15px; margin-bottom: 20px; border: 1px solid red; background: #fee2e2; border-radius: 6px;'>
-            <strong>Connection Failed:</strong> " . $conn->connect_error . "<br>Please check your database credentials and try again.
+            <strong>Connection Failed:</strong> " . htmlspecialchars($error_msg) . "<br>Please check your database credentials and try again.
         </div>";
         $show_form = true;
     } else {
@@ -87,7 +96,8 @@ if ($_POST) {
 
             // Write connection file
             $connect_code = "<?php
-// db_connect.php - Database connection for KS Electrical and AC Services
+// db_connect.php - Smart Database Connection for KS Electrical and AC Services
+@mysqli_report(MYSQLI_REPORT_OFF);
 \$localhost = \"$host\";
 \$username = \"$user\";
 \$password = \"$pass\";
@@ -114,8 +124,13 @@ if (\$connect->connect_error) {
     }
 } else {
     // Try connecting to default localhost
-    $conn = @new mysqli($host, $user, $pass, $dbname);
-    if ($conn->connect_error) {
+    try {
+        $conn = @new mysqli($host, $user, $pass, $dbname);
+    } catch (Exception $e) {
+        $conn = null;
+    }
+    
+    if (!$conn || $conn->connect_error) {
         $show_form = true;
     } else {
         // Localhost connects fine, run silent setup
