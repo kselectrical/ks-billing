@@ -1,156 +1,111 @@
 <?php
-// setup.php - Automatic Database and Connection Configurator for KS Electrical and AC Services
+// setup.php - Database initialization for KS Electrical and AC Services
 
-$host = '127.0.0.1'; // Fast localhost connection on Windows
-$sql_file = __DIR__ . '/database/store.sql';
+$localhost = "127.0.0.1";
+$username = "root";
+$password = ""; // Try empty first
+$dbname = "ks_billing";
 
-// Common local development credentials to try
-$credentials = [
-    ['username' => 'root', 'password' => ''],      // Default for XAMPP
-    ['username' => 'root', 'password' => 'root']    // Default for MAMP / custom setups
-];
-
-$connected = false;
-$conn = null;
-$chosen_user = '';
-$chosen_pass = '';
-
-foreach ($credentials as $cred) {
-    try {
-        $conn = @new mysqli($host, $cred['username'], $cred['password']);
-        if (!$conn->connect_error) {
-            $connected = true;
-            $chosen_user = $cred['username'];
-            $chosen_pass = $cred['password'];
-            break;
-        }
-    } catch (Exception $e) {
-        // try next
+// Try connecting
+$conn = @new mysqli($localhost, $username, $password);
+if ($conn->connect_error) {
+    // Try with 'root' password
+    $password = "root";
+    $conn = @new mysqli($localhost, $username, $password);
+    if ($conn->connect_error) {
+        die("<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24; text-align: center;'>" .
+            "<h2>Database Connection Failed</h2>" .
+            "<p>Could not connect to MySQL server. Please make sure XAMPP (MySQL) is running.</p>" .
+            "</div>");
     }
 }
 
-if (!$connected) {
-    echo "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24;'>";
-    echo "<h2>Database Connection Error</h2>";
-    echo "<p>Could not connect to the MySQL server on <b>127.0.0.1 / localhost</b>.</p>";
-    echo "<p><b>Please ensure that:</b></p>";
-    echo "<ul>";
-    echo "<li>Your MySQL server (like XAMPP, WampServer, or standalone MySQL) is running.</li>";
-    echo "<li>The MySQL server is listening on port 3306.</li>";
-    echo "</ul>";
-    echo "<p>We tried connecting with default credentials (username 'root' with empty password, and username 'root' with password 'root').</p>";
-    echo "</div>";
-    exit;
+// 1. Create database if not exists
+$create_db = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8 COLLATE utf8_general_ci";
+if (!$conn->query($create_db)) {
+    die("Error creating database: " . $conn->error);
 }
 
-// Create database if not exists
-$dbname = 'store';
-$create_db_query = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8 COLLATE utf8_general_ci";
-if (!$conn->query($create_db_query)) {
-    echo "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24;'>";
-    echo "<h2>Error Creating Database</h2>";
-    echo "<p>Failed to create database '$dbname': " . $conn->error . "</p>";
-    echo "</div>";
-    exit;
+// Select the database
+$conn->select_db($dbname);
+
+// 2. Create invoices table
+$create_invoices = "CREATE TABLE IF NOT EXISTS `invoices` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `customer_name` VARCHAR(255) NOT NULL,
+    `customer_phone` VARCHAR(20) NOT NULL,
+    `customer_address` TEXT,
+    `invoice_date` DATE NOT NULL,
+    `sub_total` DECIMAL(10,2) NOT NULL,
+    `gst_rate` DECIMAL(5,2) DEFAULT 18.00,
+    `gst_amount` DECIMAL(10,2) NOT NULL,
+    `discount` DECIMAL(10,2) DEFAULT 0.00,
+    `grand_total` DECIMAL(10,2) NOT NULL,
+    `payment_status` VARCHAR(20) DEFAULT 'Paid',
+    `payment_method` VARCHAR(50) DEFAULT 'Cash',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+
+if (!$conn->query($create_invoices)) {
+    die("Error creating invoices table: " . $conn->error);
 }
 
-// Select database
-if (!$conn->select_db($dbname)) {
-    echo "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24;'>";
-    echo "<h2>Error Selecting Database</h2>";
-    echo "<p>Could not select database '$dbname': " . $conn->error . "</p>";
-    echo "</div>";
-    exit;
+// 3. Create invoice_items table
+$create_items = "CREATE TABLE IF NOT EXISTS `invoice_items` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `invoice_id` INT NOT NULL,
+    `description` VARCHAR(255) NOT NULL,
+    `quantity` INT NOT NULL DEFAULT 1,
+    `rate` DECIMAL(10,2) NOT NULL,
+    `total` DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+
+if (!$conn->query($create_items)) {
+    die("Error creating invoice_items table: " . $conn->error);
 }
 
-// Import SQL dump
-if (!file_exists($sql_file)) {
-    echo "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24;'>";
-    echo "<h2>SQL File Not Found</h2>";
-    echo "<p>Could not locate the schema file at <code>$sql_file</code>.</p>";
-    echo "</div>";
-    exit;
-}
-
-$sql_content = file_get_contents($sql_file);
-
-// Parse SQL queries
-$queries = [];
-$lines = explode("\n", $sql_content);
-$temp_query = '';
-
-foreach ($lines as $line) {
-    $line = trim($line);
-    if ($line === '' || strpos($line, '--') === 0 || strpos($line, '#') === 0 || strpos($line, '/*') === 0) {
-        continue;
-    }
+// 4. Insert dummy billing data if tables are empty
+$check_empty = $conn->query("SELECT id FROM invoices LIMIT 1");
+if ($check_empty->num_rows == 0) {
+    // Insert a dummy invoice
+    $insert_invoice = "INSERT INTO `invoices` 
+        (`customer_name`, `customer_phone`, `customer_address`, `invoice_date`, `sub_total`, `gst_rate`, `gst_amount`, `discount`, `grand_total`, `payment_status`, `payment_method`) 
+        VALUES 
+        ('Rajesh Kumar', '9876543210', 'Sector 15, Vasundhara, Ghaziabad', '2026-06-12', 1500.00, 18.00, 270.00, 100.00, 1670.00, 'Paid', 'UPI');";
     
-    $temp_query .= $line . "\n";
-    if (substr($line, -1) === ';') {
-        $queries[] = $temp_query;
-        $temp_query = '';
+    if ($conn->query($insert_invoice)) {
+        $invoice_id = $conn->insert_id;
+        $insert_item1 = "INSERT INTO `invoice_items` (`invoice_id`, `description`, `quantity`, `rate`, `total`) VALUES ($invoice_id, 'Split AC Service (Jet Cleaning)', 1, 500.00, 500.00);";
+        $insert_item2 = "INSERT INTO `invoice_items` (`invoice_id`, `description`, `quantity`, `rate`, `total`) VALUES ($invoice_id, 'AC Gas Charging (R32)', 1, 1000.00, 1000.00);";
+        $conn->query($insert_item1);
+        $conn->query($insert_item2);
     }
 }
 
-$success_count = 0;
-$error_count = 0;
-
-foreach ($queries as $query) {
-    if (trim($query) !== '') {
-        if ($conn->query($query)) {
-            $success_count++;
-        } else {
-            $error_count++;
-        }
-    }
-}
-
-// Update php_action/db_connect.php dynamically
-$db_connect_path = __DIR__ . '/php_action/db_connect.php';
-
-$dynamic_url_code = '
-$protocol = (!empty($_SERVER[\'HTTPS\']) && $_SERVER[\'HTTPS\'] !== \'off\' || $_SERVER[\'SERVER_PORT\'] == 443) ? "https://" : "http://";
-$host = $_SERVER[\'HTTP_HOST\'];
-$base_dir = str_replace(\'\\\\\', \'/\', dirname($_SERVER[\'SCRIPT_NAME\']));
-$base_dir = preg_replace(\'/(\\\/php_action|\\\/custom|\\\/includes)$/\', \'\', rtrim($base_dir, \'/\'));
-$store_url = $protocol . $host . ($base_dir === \'\' ? \'/\' : $base_dir . \'/\');
-';
-
-$new_db_connect_content = "<?php 	
-// Auto-generated by setup.php on setup
-
-\$localhost = \"$host\";
-\$username = \"$chosen_user\";
-\$password = \"$chosen_pass\";
+// Save credentials inside db_connect.php as backup verification
+$db_connect_path = __DIR__ . '/db_connect.php';
+$connect_code = "<?php
+// db_connect.php - Database connection for KS Electrical and AC Services
+\$localhost = \"$localhost\";
+\$username = \"$username\";
+\$password = \"$password\";
 \$dbname = \"$dbname\";
 
-$dynamic_url_code
-
-// db connection
-\$connect = new mysqli(\$localhost, \$username, \$password, \$dbname);
-
-// check connection
-if(\$connect->connect_error) {
-  die(\"Connection Failed : \" . \$connect->connect_error);
+\$connect = @new mysqli(\$localhost, \$username, \$password, \$dbname);
+if (\$connect->connect_error) {
+    die(\"Connection Failed: \" . \$connect->connect_error);
 }
 ?>";
+file_put_contents($db_connect_path, $connect_code);
 
-if (file_put_contents($db_connect_path, $new_db_connect_content) === false) {
-    echo "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #ffc107; border-radius: 5px; background-color: #fff3cd; color: #856404;'>";
-    echo "<h2>Partial Setup Success</h2>";
-    echo "<p>Database <b>$dbname</b> was setup successfully, but we could not write settings to <code>php_action/db_connect.php</code>.</p>";
-    echo "<p>Please copy the code below and save it inside <code>php_action/db_connect.php</code> manually:</p>";
-    echo "<pre style='background: #f1f1f1; padding: 10px; overflow-x: auto;'>" . htmlspecialchars($new_db_connect_content) . "</pre>";
-    echo "</div>";
-    exit;
-}
-
-echo "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 30px; border: 1px solid #28a745; border-radius: 5px; background-color: #d4edda; color: #155724; text-align: center;'>";
-echo "<h1>Setup Successful!</h1>";
-echo "<p>Database <b>$dbname</b> has been created and initialized.</p>";
-echo "<p>Imported <b>$success_count</b> queries from <code>database/store.sql</code>.</p>";
-echo "<p>Configuration file <code>php_action/db_connect.php</code> updated successfully with auto-detected settings.</p>";
+// Render Setup Success Page
+echo "<div style='font-family: \"Segoe UI\", Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 80px auto; padding: 40px; border: none; border-radius: 12px; background-color: #d4edda; color: #155724; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);'>";
+echo "<div style='font-size: 50px; margin-bottom: 20px;'>✅</div>";
+echo "<h1 style='margin-top: 0; font-weight: 600;'>डेटाबेस सेटअप सफल! / Setup Successful!</h1>";
+echo "<p style='font-size: 16px; line-height: 1.6;'>KS Electrical & AC Services का बिलिंग डेटाबेस सफलतापूर्वक तैयार कर दिया गया है।</p>";
+echo "<p style='font-size: 16px; line-height: 1.6;'>The billing database has been initialized successfully with clean tables and sample data.</p>";
 echo "<br><br>";
-echo "<a href='index.php' style='display: inline-block; padding: 12px 24px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;'>Go to Login Page</a>";
+echo "<a href='index.php' style='display: inline-block; padding: 14px 28px; background-color: #28a745; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background-color 0.2s;'>डैशबोर्ड पर जाएँ / Go to Dashboard</a>";
 echo "</div>";
 ?>

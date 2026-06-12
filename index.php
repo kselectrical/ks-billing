@@ -1,139 +1,174 @@
-<?php 
-require_once 'php_action/db_connect.php';
+<?php
+// index.php - Dashboard and Invoice List for KS Electrical and AC Services
+require_once 'db_connect.php';
 
-session_start();
-
-if(isset($_SESSION['userId'])) {
-	header('location:'.$store_url.'dashboard.php');		
+// Handle Delete Action
+if (isset($_GET['delete'])) {
+    $delete_id = intval($_GET['delete']);
+    if ($delete_id > 0) {
+        $sql_delete = "DELETE FROM `invoices` WHERE `id` = $delete_id";
+        $connect->query($sql_delete);
+    }
+    header("Location: index.php");
+    exit;
 }
 
-$errors = array();
+// Handle Search Query
+$search = isset($_GET['search']) ? mysqli_real_escape_string($connect, $_GET['search']) : '';
+$where_clause = "";
+if (!empty($search)) {
+    $where_clause = "WHERE `customer_name` LIKE '%$search%' OR `customer_phone` LIKE '%$search%'";
+}
 
-if($_POST) {		
+// Fetch metrics
+$query_total = "SELECT SUM(`grand_total`) AS total_billed, COUNT(`id`) AS total_bills FROM `invoices`";
+$res_total = $connect->query($query_total)->fetch_assoc();
+$total_billed = floatval($res_total['total_billed']);
+$total_bills = intval($res_total['total_bills']);
 
-	$username = $_POST['username'];
-	$password = $_POST['password'];
+$query_paid = "SELECT SUM(`grand_total`) AS total_paid FROM `invoices` WHERE `payment_status` = 'Paid'";
+$res_paid = $connect->query($query_paid)->fetch_assoc();
+$total_paid = floatval($res_paid['total_paid']);
 
-	if(empty($username) || empty($password)) {
-		if($username == "") {
-			$errors[] = "Username is required";
-		} 
+$query_pending = "SELECT SUM(`grand_total`) AS total_pending FROM `invoices` WHERE `payment_status` = 'Unpaid'";
+$res_pending = $connect->query($query_pending)->fetch_assoc();
+$total_pending = floatval($res_pending['total_pending']);
 
-		if($password == "") {
-			$errors[] = "Password is required";
-		}
-	} else {
-		$sql = "SELECT * FROM users WHERE username = '$username'";
-		$result = $connect->query($sql);
-
-		if($result->num_rows == 1) {
-			$password = md5($password);
-			// exists
-			$mainSql = "SELECT * FROM users WHERE username = '$username' AND password = '$password'";
-			$mainResult = $connect->query($mainSql);
-
-			if($mainResult->num_rows == 1) {
-				$value = $mainResult->fetch_assoc();
-				$user_id = $value['user_id'];
-
-				// set session
-				$_SESSION['userId'] = $user_id;
-
-				header('location:'.$store_url.'dashboard.php');	
-			} else{
-				
-				$errors[] = "Incorrect username/password combination";
-			} // /else
-		} else {		
-			$errors[] = "Username doesnot exists";		
-		} // /else
-	} // /else not empty username // password
-	
-} // /if $_POST
+// Fetch invoices
+$sql_invoices = "SELECT * FROM `invoices` $where_clause ORDER BY `id` DESC";
+$res_invoices = $connect->query($sql_invoices);
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-	<title>Stock Management System</title>
-
-	<!-- bootstrap -->
-	<link rel="stylesheet" href="assests/bootstrap/css/bootstrap.min.css">
-	<!-- bootstrap theme-->
-	<link rel="stylesheet" href="assests/bootstrap/css/bootstrap-theme.min.css">
-	<!-- font awesome -->
-	<link rel="stylesheet" href="assests/font-awesome/css/font-awesome.min.css">
-
-  <!-- custom css -->
-  <link rel="stylesheet" href="custom/css/custom.css">	
-
-  <!-- jquery -->
-	<script src="assests/jquery/jquery.min.js"></script>
-  <!-- jquery ui -->  
-  <link rel="stylesheet" href="assests/jquery-ui/jquery-ui.min.css">
-  <script src="assests/jquery-ui/jquery-ui.min.js"></script>
-
-  <!-- bootstrap js -->
-	<script src="assests/bootstrap/js/bootstrap.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | KS Electrical and AC Services</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-	<div class="container">
-		<div class="row vertical">
-			<div class="col-md-5 col-md-offset-4">
-				<div class="panel panel-info">
-					<div class="panel-heading">
-						<h3 class="panel-title">Please Sign in</h3>
-					</div>
-					<div class="panel-body">
 
-						<div class="messages">
-							<?php if($errors) {
-								foreach ($errors as $key => $value) {
-									echo '<div class="alert alert-warning" role="alert">
-									<i class="glyphicon glyphicon-exclamation-sign"></i>
-									'.$value.'</div>';										
-									}
-								} ?>
-						</div>
+<header>
+    <div class="container header-container">
+        <div class="logo-section">
+            <h1>KS Electrical and AC Services</h1>
+            <span>Kaushindra Singh • Billing System</span>
+        </div>
+        <nav>
+            <a href="index.php" class="active">Dashboard</a>
+            <a href="create_invoice.php">Create New Bill</a>
+        </nav>
+    </div>
+</header>
 
-						<form class="form-horizontal" action="<?php echo $_SERVER['PHP_SELF'] ?>" method="post" id="loginForm">
-							<fieldset>
-							  <div class="form-group">
-									<label for="username" class="col-sm-2 control-label">Username</label>
-									<div class="col-sm-10">
-									  <input type="text" class="form-control" id="username" name="username" placeholder="Username" autocomplete="off" />
-									</div>
-								</div>
-								<div class="form-group">
-									<label for="password" class="col-sm-2 control-label">Password</label>
-									<div class="col-sm-10">
-									  <input type="password" class="form-control" id="password" name="password" placeholder="Password" autocomplete="off" />
-									</div>
-								</div>								
-								<div class="form-group">
-									<div class="col-sm-offset-2 col-sm-10">
-									  <button type="submit" class="btn btn-default"> <i class="glyphicon glyphicon-log-in"></i> Sign in</button>
-									</div>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-					<!-- panel-body -->
-				</div>
-				<!-- /panel -->
-			</div>
-			<!-- /col-md-4 -->
-		</div>
-		<!-- /row -->
-	</div>
-	<!-- container -->	
+<div class="container">
+    <!-- Metrics Cards Row -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-info">
+                <h3>Total Billed (कुल बिल राशि)</h3>
+                <p>₹<?php echo number_format($total_billed, 2); ?></p>
+            </div>
+            <div class="metric-icon">📊</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-info">
+                <h3>Total Paid (प्राप्त राशि)</h3>
+                <p style="color: var(--success);">₹<?php echo number_format($total_paid, 2); ?></p>
+            </div>
+            <div class="metric-icon">💰</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-info">
+                <h3>Pending / Unpaid (बकाया राशि)</h3>
+                <p style="color: var(--danger);">₹<?php echo number_format($total_pending, 2); ?></p>
+            </div>
+            <div class="metric-icon">⏳</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-info">
+                <h3>Total Invoices (कुल बिल संख्या)</h3>
+                <p><?php echo $total_bills; ?></p>
+            </div>
+            <div class="metric-icon">📄</div>
+        </div>
+    </div>
+
+    <!-- Title and Action -->
+    <div class="section-title-bar">
+        <h2>Customer Invoices (ग्राहकों के बिल की सूची)</h2>
+        <a href="create_invoice.php" class="btn btn-primary">+ Create New Bill (नया बिल बनाएं)</a>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <form method="GET" class="search-form">
+            <input type="text" class="search-input" name="search" placeholder="Search by customer name or phone..." value="<?php echo htmlspecialchars($search); ?>">
+            <button type="submit" class="btn btn-secondary">Search</button>
+            <?php if (!empty($search)) { ?>
+                <a href="index.php" class="btn btn-secondary" style="padding: 10px;">Clear</a>
+            <?php } ?>
+        </form>
+    </div>
+
+    <!-- Invoices List Card -->
+    <div class="card">
+        <div class="card-header">All Bills</div>
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Bill No.</th>
+                            <th style="width: 15%;">Date</th>
+                            <th style="width: 25%;">Customer Name</th>
+                            <th style="width: 15%;">Phone</th>
+                            <th style="width: 15%; text-align: right;">Amount</th>
+                            <th style="width: 10%; text-align: center;">Status</th>
+                            <th style="width: 10%; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        if ($res_invoices->num_rows > 0) {
+                            while($inv = $res_invoices->fetch_assoc()) { 
+                        ?>
+                        <tr>
+                            <td><strong>#KS-<?php echo str_pad($inv['id'], 4, '0', STR_PAD_LEFT); ?></strong></td>
+                            <td><?php echo date('d-m-Y', strtotime($inv['invoice_date'])); ?></td>
+                            <td><?php echo htmlspecialchars($inv['customer_name']); ?></td>
+                            <td><?php echo htmlspecialchars($inv['customer_phone']); ?></td>
+                            <td style="text-align: right; font-weight: 600;">₹<?php echo number_format($inv['grand_total'], 2); ?></td>
+                            <td style="text-align: center;">
+                                <span class="badge <?php 
+                                    if ($inv['payment_status'] == 'Paid') echo 'badge-success';
+                                    elseif ($inv['payment_status'] == 'Unpaid') echo 'badge-danger';
+                                    else echo 'badge-warning';
+                                ?>">
+                                    <?php echo $inv['payment_status']; ?>
+                                </span>
+                            </td>
+                            <td style="text-align: center; white-space: nowrap;">
+                                <a href="view_invoice.php?id=<?php echo $inv['id']; ?>" class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;">View/Print</a>
+                                <a href="index.php?delete=<?php echo $inv['id']; ?>" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;" onclick="return confirm('Are you sure you want to delete this bill?');">Delete</a>
+                            </td>
+                        </tr>
+                        <?php 
+                            }
+                        } else { 
+                        ?>
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                No invoices found. Click "Create New Bill" to add one!
+                            </td>
+                        </tr>
+                        <?php } ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
-
-
-
-
-
-
-
-	
