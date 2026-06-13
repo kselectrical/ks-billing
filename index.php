@@ -3,24 +3,6 @@
 require_once 'auth_check.php';
 require_once 'db_connect.php';
 
-// Handle Delete Action
-if (isset($_GET['delete'])) {
-    $delete_id = intval($_GET['delete']);
-    if ($delete_id > 0) {
-        $sql_delete = "DELETE FROM `invoices` WHERE `id` = $delete_id";
-        $connect->query($sql_delete);
-    }
-    header("Location: index.php");
-    exit;
-}
-
-// Handle Search Query
-$search = isset($_GET['search']) ? mysqli_real_escape_string($connect, $_GET['search']) : '';
-$where_clause = "";
-if (!empty($search)) {
-    $where_clause = "WHERE `customer_name` LIKE '%$search%' OR `customer_phone` LIKE '%$search%'";
-}
-
 // Fetch metrics
 $query_total = "SELECT SUM(`grand_total`) AS total_billed, COUNT(`id`) AS total_bills FROM `invoices`";
 $res_total = $connect->query($query_total)->fetch_assoc();
@@ -34,10 +16,6 @@ $total_paid = floatval($res_paid['total_paid']);
 $query_pending = "SELECT SUM(`grand_total`) AS total_pending FROM `invoices` WHERE `payment_status` = 'Unpaid'";
 $res_pending = $connect->query($query_pending)->fetch_assoc();
 $total_pending = floatval($res_pending['total_pending']);
-
-// Fetch invoices
-$sql_invoices = "SELECT * FROM `invoices` $where_clause ORDER BY `id` DESC";
-$res_invoices = $connect->query($sql_invoices);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,6 +25,55 @@ $res_invoices = $connect->query($sql_invoices);
     <title>Dashboard | KS Electrical and AC Services</title>
     <!-- Appending time() forces browser to clear cached CSS instantly -->
     <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
+    <style>
+        .dashboard-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+        .action-link {
+            text-decoration: none;
+            color: inherit;
+        }
+        .action-card {
+            background-color: var(--card-bg);
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 35px 25px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+        }
+        .card-primary-hover:hover {
+            border-color: var(--primary) !important;
+            background-color: rgba(2, 132, 199, 0.02);
+        }
+        .card-secondary-hover:hover {
+            border-color: var(--secondary) !important;
+            background-color: rgba(13, 148, 136, 0.02);
+        }
+        .action-icon {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 15px;
+        }
+        .action-card h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+        .action-card p {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+    </style>
 </head>
 <body>
 
@@ -58,6 +85,7 @@ $res_invoices = $connect->query($sql_invoices);
         </div>
         <nav>
             <a href="index.php" class="active">Dashboard</a>
+            <a href="history.php">Bill History</a>
             <a href="create_invoice.php">Create New Bill</a>
             <a href="logout.php" style="color: var(--danger); margin-left: 10px;">Logout</a>
         </nav>
@@ -97,80 +125,26 @@ $res_invoices = $connect->query($sql_invoices);
         </div>
     </div>
 
-    <!-- Title and Action -->
+    <!-- Quick Actions Grid -->
     <div class="section-title-bar">
-        <h2>Customer Invoices (ग्राहकों के बिल की सूची)</h2>
-        <a href="create_invoice.php" class="btn btn-primary">+ Create New Bill (नया बिल बनाएं)</a>
+        <h2>Quick Actions (त्वरित विकल्प)</h2>
     </div>
 
-    <!-- Search Bar -->
-    <div class="search-container">
-        <form method="GET" class="search-form">
-            <input type="text" class="search-input" name="search" placeholder="Search by customer name or phone..." value="<?php echo htmlspecialchars($search); ?>">
-            <button type="submit" class="btn btn-secondary">Search</button>
-            <?php if (!empty($search)) { ?>
-                <a href="index.php" class="btn btn-secondary" style="padding: 10px;">Clear</a>
-            <?php } ?>
-        </form>
-    </div>
-
-    <!-- Invoices List Card -->
-    <div class="card">
-        <div class="card-header">All Bills</div>
-        <div class="card-body" style="padding: 0;">
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 10%;">Bill No.</th>
-                            <th style="width: 15%;">Date</th>
-                            <th style="width: 25%;">Customer Name</th>
-                            <th style="width: 15%;">Phone</th>
-                            <th style="width: 15%; text-align: right;">Amount</th>
-                            <th style="width: 10%; text-align: center;">Status</th>
-                            <th style="width: 10%; text-align: center;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php 
-                        if ($res_invoices->num_rows > 0) {
-                            while($inv = $res_invoices->fetch_assoc()) { 
-                        ?>
-                        <tr>
-                            <td><strong>#KS-<?php echo str_pad($inv['id'], 4, '0', STR_PAD_LEFT); ?></strong></td>
-                            <td><?php echo date('d-m-Y', strtotime($inv['invoice_date'])); ?></td>
-                            <td><?php echo htmlspecialchars($inv['customer_name']); ?></td>
-                            <td><?php echo htmlspecialchars($inv['customer_phone']); ?></td>
-                            <td style="text-align: right; font-weight: 600;">₹<?php echo number_format($inv['grand_total'], 2); ?></td>
-                            <td style="text-align: center;">
-                                <span class="badge <?php 
-                                    if ($inv['payment_status'] == 'Paid') echo 'badge-success';
-                                    elseif ($inv['payment_status'] == 'Unpaid') echo 'badge-danger';
-                                    else echo 'badge-warning';
-                                ?>">
-                                    <?php echo $inv['payment_status']; ?>
-                                </span>
-                            </td>
-                            <td style="text-align: center; white-space: nowrap;">
-                                <a href="view_invoice.php?id=<?php echo $inv['id']; ?>" class="btn btn-primary" style="padding: 5px 10px; font-size: 11px;">View/Print</a>
-                                <a href="edit_invoice.php?id=<?php echo $inv['id']; ?>" class="btn btn-success" style="padding: 5px 10px; font-size: 11px; background-color: var(--secondary);">Edit</a>
-                                <a href="index.php?delete=<?php echo $inv['id']; ?>" class="btn btn-danger" style="padding: 5px 10px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this bill?');">Delete</a>
-                            </td>
-                        </tr>
-                        <?php 
-                            }
-                        } else { 
-                        ?>
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">
-                                No invoices found. Click "Create New Bill" to add one!
-                            </td>
-                        </tr>
-                        <?php } ?>
-                    </tbody>
-                </table>
+    <div class="dashboard-actions-grid">
+        <a href="create_invoice.php" class="action-link">
+            <div class="action-card card-primary-hover">
+                <span class="action-icon">➕</span>
+                <h3>Create New Bill</h3>
+                <p>कस्टमर के लिए नया बिल बनाएं और सहेजें</p>
             </div>
-        </div>
+        </a>
+        <a href="history.php" class="action-link">
+            <div class="action-card card-secondary-hover">
+                <span class="action-icon">📜</span>
+                <h3>Bill History (बिल इतिहास)</h3>
+                <p>तारीख, महीने और साल के अनुसार सभी पुराने बिल खोजें और प्रबंधित करें</p>
+            </div>
+        </a>
     </div>
 </div>
 

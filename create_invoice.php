@@ -86,6 +86,7 @@ if ($_POST) {
         </div>
         <nav>
             <a href="index.php">Dashboard</a>
+            <a href="history.php">Bill History</a>
             <a href="create_invoice.php" class="active">Create New Bill</a>
             <a href="logout.php" style="color: var(--danger); margin-left: 10px;">Logout</a>
         </nav>
