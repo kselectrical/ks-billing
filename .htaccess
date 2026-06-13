@@ -1,4 +1,7 @@
 RewriteEngine On
-RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1) [NC]
+
+# Force HTTPS redirect - Compatible with InfinityFree reverse proxies
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteCond %{HTTP:CF-Visitor} !{"scheme":"https"}
+RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
